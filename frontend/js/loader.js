@@ -8,6 +8,20 @@ class ModelLoader {
         this.jacketMesh = null;
         this.jacketSkeleton = null;
         this.isLoaded = false;
+        
+        // Setup Meshopt decoder for compressed models
+        this.setupMeshoptDecoder();
+    }
+
+    /**
+     * Setup Meshopt decoder for compressed GLB files
+     */
+    setupMeshoptDecoder() {
+        // Use the decoder from CDN
+        if (typeof MeshoptDecoder !== 'undefined') {
+            this.loader.setMeshoptDecoder(MeshoptDecoder);
+            console.log('Meshopt decoder initialized');
+        }
     }
 
     /**
