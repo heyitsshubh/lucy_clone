@@ -1,0 +1,3 @@
+*.glb
+node_modules/
+.env
