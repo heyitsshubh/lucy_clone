@@ -32,7 +32,7 @@ const CONFIG = {
 
     // Jacket model configuration
     JACKET: {
-        MODEL_PATH: '/frontend/assets/models/14_Jacket.glb', 
+        MODEL_PATH: 'assets/models/14_Jacket.glb', 
         SCALE: 1.0,
         POSITION: { x: 0, y: 0, z: 0 },
         ROTATION: { x: 0, y: 0, z: 0 }
