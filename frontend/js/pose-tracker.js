@@ -1,6 +1,4 @@
 // MediaPipe Pose tracking module for Lucy Virtual Try-On
-import { Camera } from "@mediapipe/camera_utils";
-import { Pose, POSE_CONNECTIONS } from "@mediapipe/pose";
 
 class PoseTracker {
     constructor() {
@@ -25,6 +23,12 @@ class PoseTracker {
         try {
             console.log('Initializing MediaPipe Pose...');
             Utils.updateLoadingText('Loading AI pose tracking...');
+
+            // Use window.Pose to access MediaPipe Pose class
+            const Pose = window.Pose;
+            if (!Pose) {
+                throw new Error('MediaPipe Pose not loaded');
+            }
 
             // Initialize Pose
             this.pose = new Pose({
@@ -66,20 +70,19 @@ class PoseTracker {
         }
 
         try {
-            // Initialize camera for MediaPipe
+            // Get video element
             const video = document.getElementById('camera-video');
             
-            this.camera = new Camera(video, {
-                onFrame: async () => {
-                    if (this.pose && video.readyState >= 2) {
-                        await this.pose.send({ image: video });
-                    }
-                },
-                width: CONFIG.CAMERA.WIDTH,
-                height: CONFIG.CAMERA.HEIGHT
-            });
-
-            await this.camera.start();
+            // Create custom frame loop instead of MediaPipe Camera
+            const sendFrame = async () => {
+                if (this.pose && video.readyState >= 2) {
+                    await this.pose.send({ image: video });
+                }
+                requestAnimationFrame(sendFrame);
+            };
+            
+            // Start the frame loop
+            requestAnimationFrame(sendFrame);
             console.log('Pose tracking started');
 
         } catch (error) {

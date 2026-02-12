@@ -164,18 +164,31 @@ class CompositeRenderer {
             img.src = aiFrame;
             
             img.onload = () => {
-                // Get canvas context
-                const ctx = this.canvas.getContext('2d');
+                // Get canvas context (check if valid)
+                if (!this.ctx) {
+                    this.ctx = this.canvas.getContext('2d');
+                }
                 
-                // Save current composite
-                const currentFrame = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                if (!this.ctx) {
+                    console.error('Cannot get 2D context from canvas');
+                    return;
+                }
+                
+                // Verify canvas dimensions are valid
+                if (this.canvas.width === 0 || this.canvas.height === 0) {
+                    console.warn('Canvas has invalid dimensions');
+                    return;
+                }
+                
+                // Get current frame
+                const currentFrame = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 
                 // Draw AI frame
-                ctx.globalAlpha = alpha;
-                ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.globalAlpha = alpha;
+                this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
                 
                 // Restore alpha
-                ctx.globalAlpha = 1.0;
+                this.ctx.globalAlpha = 1.0;
             };
             
         } catch (error) {
