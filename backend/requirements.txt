@@ -7,8 +7,8 @@ python-multipart==0.0.6
 websockets==12.0
 
 # Deep Learning
-torch==2.10.0
-torchvision==0.18.0
+torch==2.0.1
+torchvision==0.15.2
 diffusers==0.25.1
 transformers==4.37.2
 accelerate==0.26.1
