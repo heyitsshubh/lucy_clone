@@ -1,5 +1,5 @@
-// Composite Renderer - OPTIMIZED VERSION
-// Combines camera feed with 3D jacket overlay with better performance
+// Composite Renderer - FIXED TRANSPARENCY + LIGHTING
+// Combines camera feed with 3D jacket overlay
 
 class CompositeRenderer {
     constructor() {
@@ -26,7 +26,7 @@ class CompositeRenderer {
      */
     init(width, height) {
         try {
-            console.log('Initializing CompositeRenderer (Optimized)...');
+            console.log('Initializing CompositeRenderer (Fixed)...');
             
             // Store dimensions
             this.width = width;
@@ -90,11 +90,12 @@ class CompositeRenderer {
         console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
         console.log('Video ready state:', video.readyState);
 
-        // Create video texture
+        // Create video texture with proper color handling
         this.videoTexture = new THREE.VideoTexture(video);
         this.videoTexture.minFilter = THREE.LinearFilter;
         this.videoTexture.magFilter = THREE.LinearFilter;
         this.videoTexture.format = THREE.RGBFormat;
+        this.videoTexture.colorSpace = THREE.SRGBColorSpace; // ✅ Fix color space
         this.videoTexture.needsUpdate = true;
 
         // Create plane geometry to fit the screen
@@ -103,16 +104,19 @@ class CompositeRenderer {
         const planeHeight = planeWidth / aspect;
         
         const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+        
+        // ✅ FIX: Unlit material to prevent lighting from washing out video
         const material = new THREE.MeshBasicMaterial({
             map: this.videoTexture,
-            side: THREE.DoubleSide,
-            depthWrite: false,
-            depthTest: false
+            side: THREE.FrontSide,
+            depthWrite: true,  // ✅ Enable depth write
+            depthTest: true,   // ✅ Enable depth test
+            toneMapped: false  // ✅ Disable tone mapping for accurate colors
         });
 
         this.videoPlane = new THREE.Mesh(geometry, material);
         this.videoPlane.position.z = -10; // Behind everything
-        this.videoPlane.renderOrder = -1; // Render first
+        this.videoPlane.renderOrder = -1000; // ✅ Render first
         
         // Add to scene
         sceneManager.add(this.videoPlane);

@@ -1,4 +1,5 @@
 // PBR Materials manager for Lucy Virtual Try-On
+// FIXED VERSION - Properly shows jacket when fabric applied
 
 class MaterialsManager {
     constructor() {
@@ -23,9 +24,7 @@ class MaterialsManager {
                 throw new Error('Jacket mesh not found');
             }
 
-            // -----------------------------
-            // ✅ COLOR-BASED FABRIC
-            // -----------------------------
+            // COLOR-BASED FABRIC
             if (fabricData.color) {
                 const material = new THREE.MeshStandardMaterial({
                     color: new THREE.Color(fabricData.color),
@@ -44,15 +43,15 @@ class MaterialsManager {
                     this.disposeMaterial(oldMaterial);
                 }
 
+                // ✅ Show jacket and force skeleton mapper to activate
                 modelLoader.setVisible(true);
+                skeletonMapper.forceShowJacket();
 
-                console.log('Fabric applied (color):', fabricData.name);
+                console.log('✅ Fabric applied (color):', fabricData.name);
                 return true;
             }
 
-            // -----------------------------
-            // ✅ TEXTURE-BASED (PBR) FABRIC
-            // -----------------------------
+            // TEXTURE-BASED (PBR) FABRIC
             const [diffuseMap, normalMap, roughnessMap] = await Promise.all([
                 fabricData.diffuseUrl ? this.loadTexture(fabricData.diffuseUrl) : null,
                 fabricData.normalUrl ? this.loadTexture(fabricData.normalUrl) : null,
@@ -95,9 +94,11 @@ class MaterialsManager {
                 this.disposeMaterial(oldMaterial);
             }
 
+            // ✅ Show jacket and force skeleton mapper to activate
             modelLoader.setVisible(true);
+            skeletonMapper.forceShowJacket();
 
-            console.log('Fabric applied successfully');
+            console.log('✅ Fabric applied (texture):', fabricData.name);
             return true;
 
         } catch (error) {
@@ -116,7 +117,7 @@ class MaterialsManager {
             loader.load(
                 url,
                 (texture) => {
-                    texture.encoding = THREE.sRGBEncoding;
+                    texture.colorSpace = THREE.SRGBColorSpace;
                     texture.flipY = false;
                     texture.anisotropy = 16;
                     resolve(texture);
@@ -189,7 +190,11 @@ class MaterialsManager {
             this.textures[key] = null;
         });
 
+        // ✅ Hide jacket when fabric removed
         modelLoader.setVisible(false);
+        skeletonMapper.hideJacket();
+        
+        console.log('Fabric removed, jacket hidden');
     }
 
     /**

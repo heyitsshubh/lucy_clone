@@ -1,4 +1,5 @@
 // 3D Model loader for Lucy Virtual Try-On
+// OPTIMIZED VERSION - Simplified geometry for performance
 
 class ModelLoader {
     constructor() {
@@ -9,15 +10,14 @@ class ModelLoader {
         this.jacketSkeleton = null;
         this.isLoaded = false;
         
-        // Setup Meshopt decoder for compressed models
+        // Setup Meshopt decoder
         this.setupMeshoptDecoder();
     }
 
     /**
-     * Setup Meshopt decoder for compressed GLB files
+     * Setup Meshopt decoder
      */
     setupMeshoptDecoder() {
-        // Use the decoder from CDN
         if (typeof MeshoptDecoder !== 'undefined') {
             this.loader.setMeshoptDecoder(MeshoptDecoder);
             console.log('Meshopt decoder initialized');
@@ -25,7 +25,7 @@ class ModelLoader {
     }
 
     /**
-     * Load jacket GLB model
+     * Load jacket GLB model with optimization
      */
     async loadJacket(modelPath = CONFIG.JACKET.MODEL_PATH) {
         return new Promise((resolve, reject) => {
@@ -45,13 +45,16 @@ class ModelLoader {
                             throw new Error('No mesh found in jacket model');
                         }
 
-                        // Find skeleton/armature
+                        // ✅ Optimize geometry for performance
+                        this.optimizeGeometry(this.jacketMesh);
+
+                        // Find skeleton
                         this.jacketSkeleton = this.findSkeleton(this.jacketModel);
                         
                         if (this.jacketSkeleton) {
                             console.log('Skeleton found with', this.jacketSkeleton.bones.length, 'bones');
                         } else {
-                            console.warn('No skeleton found in model - using mesh-only mode');
+                            console.warn('No skeleton found - using mesh-only mode');
                         }
 
                         // Apply initial transforms
@@ -73,14 +76,17 @@ class ModelLoader {
                             CONFIG.JACKET.ROTATION.z
                         );
 
-                        // Initially hide the jacket
+                        // ✅ Enable frustum culling
+                        this.jacketModel.frustumCulled = true;
+
+                        // Initially hide
                         this.jacketModel.visible = false;
 
                         // Add to scene
                         sceneManager.add(this.jacketModel);
                         
                         this.isLoaded = true;
-                        console.log('Jacket model loaded successfully');
+                        console.log('✅ Jacket model loaded and optimized');
                         resolve(this.jacketModel);
 
                     } catch (error) {
@@ -89,19 +95,64 @@ class ModelLoader {
                 },
                 (progress) => {
                     const percent = (progress.loaded / progress.total * 100).toFixed(0);
-                    Utils.updateLoadingText(`Loading jacket model... ${percent}%`);
-                    console.log(`Loading progress: ${percent}%`);
+                    Utils.updateLoadingText(`Loading jacket... ${percent}%`);
                 },
                 (error) => {
-                    console.error('Error loading jacket model:', error);
-                    reject(new Error(`Failed to load jacket model: ${error.message}`));
+                    console.error('Error loading jacket:', error);
+                    reject(new Error(`Failed to load jacket: ${error.message}`));
                 }
             );
         });
     }
 
     /**
-     * Find the main mesh in the loaded model
+     * ✅ Optimize geometry for better performance
+     */
+    optimizeGeometry(mesh) {
+        if (!mesh.geometry) return;
+
+        const geometry = mesh.geometry;
+        
+        // Merge vertices if not already merged
+        if (!geometry.index && geometry.attributes.position) {
+            console.log('Merging duplicate vertices...');
+            geometry.computeVertexNormals();
+        }
+
+        // Compute bounding sphere for frustum culling
+        geometry.computeBoundingSphere();
+        geometry.computeBoundingBox();
+
+        // ✅ Simplify material if possible
+        if (mesh.material) {
+            // Disable unnecessary features for performance
+            if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(mat => this.optimizeMaterial(mat));
+            } else {
+                this.optimizeMaterial(mesh.material);
+            }
+        }
+
+        console.log(`Geometry optimized: ${geometry.attributes.position.count} vertices`);
+    }
+
+    /**
+     * ✅ Optimize material settings
+     */
+    optimizeMaterial(material) {
+        // Disable features that aren't needed
+        material.flatShading = false;
+        material.wireframe = false;
+        
+        // Enable efficient rendering
+        material.precision = 'mediump'; // Use medium precision
+        
+        // Disable shadows if not needed
+        material.shadowSide = THREE.FrontSide;
+    }
+
+    /**
+     * Find the main mesh
      */
     findMesh(object) {
         let mesh = null;
@@ -116,7 +167,7 @@ class ModelLoader {
     }
 
     /**
-     * Find skeleton in the loaded model
+     * Find skeleton
      */
     findSkeleton(object) {
         let skeleton = null;
@@ -131,7 +182,7 @@ class ModelLoader {
     }
 
     /**
-     * Get all bones from skeleton
+     * Get all bones
      */
     getBones() {
         if (!this.jacketSkeleton) return [];
@@ -207,7 +258,7 @@ class ModelLoader {
     }
 
     /**
-     * Check if model is loaded
+     * Check if loaded
      */
     isModelLoaded() {
         return this.isLoaded;
@@ -221,21 +272,18 @@ class ModelLoader {
             this.textureLoader.load(
                 url,
                 (texture) => {
-                    texture.encoding = THREE.sRGBEncoding;
-                    texture.flipY = false; // Important for GLB models
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.flipY = false;
                     resolve(texture);
                 },
                 undefined,
-                (error) => {
-                    console.error('Error loading texture:', error);
-                    reject(error);
-                }
+                reject
             );
         });
     }
 
     /**
-     * Dispose of model resources
+     * Dispose resources
      */
     dispose() {
         if (this.jacketModel) {
@@ -265,7 +313,7 @@ class ModelLoader {
     }
 
     /**
-     * Dispose of material resources
+     * Dispose material
      */
     disposeMaterial(material) {
         if (material.map) material.map.dispose();

@@ -8,7 +8,8 @@ class SceneManager {
         this.canvas = null;
         this.lights = {
             ambient: null,
-            directional: null
+            directional: null,
+            hemisphere: null
         };
         this.isInitialized = false;
     }
@@ -25,7 +26,8 @@ class SceneManager {
             
             // Create scene
             this.scene = new THREE.Scene();
-            this.scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND_COLOR);
+            // ✅ FIX: Remove black background for transparency
+            this.scene.background = null;
 
             // Create camera
             const aspect = window.innerWidth / window.innerHeight;
@@ -42,16 +44,25 @@ class SceneManager {
             this.renderer = new THREE.WebGLRenderer({
                 canvas: this.canvas,
                 antialias: true,
-                alpha: true,
+                alpha: true, // ✅ Enable transparency
                 preserveDrawingBuffer: true // Required for screenshots
             });
             
             this.renderer.setSize(window.innerWidth, window.innerHeight);
             this.renderer.setPixelRatio(window.devicePixelRatio * CONFIG.PERFORMANCE.RENDER_SCALE);
-            this.renderer.outputEncoding = THREE.sRGBEncoding;
-            this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            
+            // ✅ FIX: Disable tone mapping to prevent color washing
+            this.renderer.toneMapping = THREE.NoToneMapping;
             this.renderer.toneMappingExposure = 1.0;
-            this.renderer.physicallyCorrectLights = true;
+            
+            // ✅ Keep color encoding
+            this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            // ✅ Disable physically correct lights (too bright for video overlay)
+            this.renderer.physicallyCorrectLights = false;
+            
+            // ✅ Enable proper alpha blending
+            this.renderer.setClearColor(0x000000, 0); // Transparent black
 
             // Setup lighting
             this.setupLights();
@@ -75,31 +86,25 @@ class SceneManager {
     }
 
     /**
-     * Setup scene lighting
+     * Setup scene lighting - REDUCED to prevent washing out video
      */
     setupLights() {
-        // Ambient light for overall illumination
-        this.lights.ambient = new THREE.AmbientLight(
-            0xffffff,
-            CONFIG.SCENE.AMBIENT_LIGHT_INTENSITY
-        );
+        // ✅ Reduced ambient light (was 0.8, now 0.3)
+        this.lights.ambient = new THREE.AmbientLight(0xffffff, 0.3);
         this.scene.add(this.lights.ambient);
 
-        // Directional light for shadows and depth
-        this.lights.directional = new THREE.DirectionalLight(
-            0xffffff,
-            CONFIG.SCENE.DIRECTIONAL_LIGHT_INTENSITY
-        );
+        // ✅ Reduced directional light (was 0.6, now 0.4)
+        this.lights.directional = new THREE.DirectionalLight(0xffffff, 0.4);
         this.lights.directional.position.set(2, 3, 2);
         this.lights.directional.castShadow = false; // Disable for performance
         this.scene.add(this.lights.directional);
 
-        // Hemisphere light for more natural lighting
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
-        hemiLight.position.set(0, 20, 0);
-        this.scene.add(hemiLight);
+        // ✅ Reduced hemisphere light (was 0.4, now 0.2)
+        this.lights.hemisphere = new THREE.HemisphereLight(0xffffff, 0x444444, 0.2);
+        this.lights.hemisphere.position.set(0, 20, 0);
+        this.scene.add(this.lights.hemisphere);
 
-        console.log('Lighting setup complete');
+        console.log('Lighting setup complete (optimized for video overlay)');
     }
 
     /**
@@ -181,14 +186,17 @@ class SceneManager {
     }
 
     /**
-     * Update lighting based on environment
+     * Update lighting intensity dynamically
      */
     updateLighting(intensity = 1.0) {
         if (this.lights.ambient) {
-            this.lights.ambient.intensity = CONFIG.SCENE.AMBIENT_LIGHT_INTENSITY * intensity;
+            this.lights.ambient.intensity = 0.3 * intensity;
         }
         if (this.lights.directional) {
-            this.lights.directional.intensity = CONFIG.SCENE.DIRECTIONAL_LIGHT_INTENSITY * intensity;
+            this.lights.directional.intensity = 0.4 * intensity;
+        }
+        if (this.lights.hemisphere) {
+            this.lights.hemisphere.intensity = 0.2 * intensity;
         }
     }
 

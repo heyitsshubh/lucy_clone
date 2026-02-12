@@ -1,4 +1,5 @@
 // MediaPipe Pose tracking module for Lucy Virtual Try-On
+// OPTIMIZED VERSION - Frame throttling for performance
 
 class PoseTracker {
     constructor() {
@@ -14,6 +15,11 @@ class PoseTracker {
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
         this.fps = 0;
+        
+        // ✅ Frame throttling for performance
+        this.lastProcessTime = 0;
+        this.processInterval = 1000 / 30; // Process at 30 FPS max
+        this.isProcessing = false;
     }
 
     /**
@@ -37,14 +43,14 @@ class PoseTracker {
                 }
             });
 
-            // Configure Pose options
+            // ✅ Optimize Pose options for performance
             this.pose.setOptions({
-                modelComplexity: CONFIG.POSE.MODEL_COMPLEXITY,
-                smoothLandmarks: CONFIG.POSE.SMOOTH_LANDMARKS,
-                enableSegmentation: CONFIG.POSE.ENABLE_SEGMENTATION,
-                smoothSegmentation: CONFIG.POSE.SMOOTH_SEGMENTATION,
-                minDetectionConfidence: CONFIG.POSE.MIN_DETECTION_CONFIDENCE,
-                minTrackingConfidence: CONFIG.POSE.MIN_TRACKING_CONFIDENCE
+                modelComplexity: 0, // ✅ Use Lite model (was 1)
+                smoothLandmarks: true,
+                enableSegmentation: false, // ✅ Disable segmentation
+                smoothSegmentation: false,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
             });
 
             // Set result callback
@@ -52,7 +58,7 @@ class PoseTracker {
 
             this.isInitialized = true;
             Utils.updateStatus('tracking', true);
-            console.log('MediaPipe Pose initialized');
+            console.log('MediaPipe Pose initialized (optimized)');
 
         } catch (error) {
             console.error('Pose initialization failed:', error);
@@ -62,7 +68,7 @@ class PoseTracker {
     }
 
     /**
-     * Start pose tracking
+     * Start pose tracking with frame throttling
      */
     async start() {
         if (!this.isInitialized) {
@@ -73,17 +79,36 @@ class PoseTracker {
             // Get video element
             const video = document.getElementById('camera-video');
             
-            // Create custom frame loop instead of MediaPipe Camera
+            // ✅ Throttled frame loop - only process every 33ms (30 FPS)
             const sendFrame = async () => {
-                if (this.pose && video.readyState >= 2) {
-                    await this.pose.send({ image: video });
+                const now = performance.now();
+                const elapsed = now - this.lastProcessTime;
+                
+                // Skip frame if not enough time has passed or still processing
+                if (elapsed < this.processInterval || this.isProcessing) {
+                    requestAnimationFrame(sendFrame);
+                    return;
                 }
+                
+                if (this.pose && video.readyState >= 2) {
+                    this.isProcessing = true;
+                    this.lastProcessTime = now;
+                    
+                    try {
+                        await this.pose.send({ image: video });
+                    } catch (error) {
+                        console.error('Pose processing error:', error);
+                    } finally {
+                        this.isProcessing = false;
+                    }
+                }
+                
                 requestAnimationFrame(sendFrame);
             };
             
             // Start the frame loop
             requestAnimationFrame(sendFrame);
-            console.log('Pose tracking started');
+            console.log('Pose tracking started (throttled to 30 FPS)');
 
         } catch (error) {
             console.error('Error starting pose tracking:', error);
@@ -120,7 +145,7 @@ class PoseTracker {
             this.smoothedLandmarks = results.poseLandmarks;
         }
 
-        // Debug visualization
+        // Debug visualization (expensive, skip if not needed)
         if (CONFIG.DEBUG.SHOW_POSE_LANDMARKS) {
             this.drawLandmarks(results);
         }
@@ -241,17 +266,19 @@ class PoseTracker {
         
         if (elapsed >= 1000) {
             this.fps = Math.round((this.frameCount * 1000) / elapsed);
-            Utils.updateFPS(this.fps);
+            // Don't update UI FPS here - let renderer handle it
             this.frameCount = 0;
             this.lastFrameTime = now;
         }
     }
 
     /**
-     * Draw landmarks for debugging
+     * Draw landmarks for debugging (EXPENSIVE - use sparingly)
      */
     drawLandmarks(results) {
         const canvas = document.getElementById('pose-canvas');
+        if (!canvas) return;
+        
         const canvasCtx = canvas.getContext('2d');
         
         canvas.width = CONFIG.CAMERA.WIDTH;
@@ -287,6 +314,7 @@ class PoseTracker {
         this.landmarks = null;
         this.worldLandmarks = null;
         this.smoothedLandmarks = null;
+        this.isProcessing = false;
         Utils.updateStatus('tracking', false);
         console.log('Pose tracking stopped');
     }
@@ -296,6 +324,14 @@ class PoseTracker {
      */
     getFPS() {
         return this.fps;
+    }
+    
+    /**
+     * Set process interval (FPS cap)
+     */
+    setProcessInterval(fps) {
+        this.processInterval = 1000 / fps;
+        console.log(`Pose processing capped at ${fps} FPS`);
     }
 }
 

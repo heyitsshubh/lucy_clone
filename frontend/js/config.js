@@ -1,17 +1,12 @@
 // Configuration file for Lucy Virtual Try-On
-// UPDATED VERSION - Offline-first with proper fallbacks
+// UPDATED VERSION - Optimized skeleton tracking
 
 const CONFIG = {
     // Backend API configuration
     API: {
-        // Change these to your actual Render.com deployment URL
-        // For local testing, use: 'http://localhost:5000'
         BASE_URL: 'https://lucy-clone-vvd7.onrender.com',
-        // IMPORTANT: Use WSS:// for HTTPS sites, WS:// for HTTP
         WS_URL: 'wss://lucy-clone-vvd7.onrender.com/ws',
-        
-        // Timeout settings
-        REQUEST_TIMEOUT: 10000, // 10 seconds
+        REQUEST_TIMEOUT: 10000,
         
         ENDPOINTS: {
             HEALTH: '/health',
@@ -24,11 +19,8 @@ const CONFIG = {
 
     // Offline mode configuration
     OFFLINE_MODE: {
-        // If true, app will work without backend
         ENABLED: true,
-        // Use mock data when backend unavailable
         USE_MOCK_DATA: true,
-        // Show offline indicator
         SHOW_INDICATOR: true
     },
 
@@ -37,7 +29,7 @@ const CONFIG = {
         WIDTH: 1280,
         HEIGHT: 720,
         FRAME_RATE: 30,
-        FACING_MODE: 'user' // 'user' for front camera, 'environment' for back
+        FACING_MODE: 'user'
     },
 
     // Three.js scene configuration
@@ -46,8 +38,8 @@ const CONFIG = {
         CAMERA_FOV: 50,
         CAMERA_NEAR: 0.1,
         CAMERA_FAR: 2000,
-        AMBIENT_LIGHT_INTENSITY: 0.8,
-        DIRECTIONAL_LIGHT_INTENSITY: 0.6
+        AMBIENT_LIGHT_INTENSITY: 0.3, // ✅ Reduced
+        DIRECTIONAL_LIGHT_INTENSITY: 0.4 // ✅ Reduced
     },
 
     // Jacket model configuration
@@ -60,9 +52,9 @@ const CONFIG = {
 
     // MediaPipe Pose configuration
     POSE: {
-        MODEL_COMPLEXITY: 1, // 0=Lite, 1=Full, 2=Heavy
+        MODEL_COMPLEXITY: 0, // ✅ Lite model for performance
         SMOOTH_LANDMARKS: true,
-        SMOOTH_SEGMENTATION: true,
+        SMOOTH_SEGMENTATION: false,
         MIN_DETECTION_CONFIDENCE: 0.5,
         MIN_TRACKING_CONFIDENCE: 0.5,
         ENABLE_SEGMENTATION: false
@@ -70,7 +62,7 @@ const CONFIG = {
 
     // Skeleton mapping configuration
     SKELETON: {
-        SMOOTHING_FACTOR: 0.5, // Increased for smoother motion
+        SMOOTHING_FACTOR: 0.5, // ✅ Increased for smoother motion
         SCALE_MULTIPLIERS: {
             SHOULDERS: 1.2,
             TORSO: 1.0,
@@ -99,11 +91,11 @@ const CONFIG = {
 
     // AI Pipeline configuration
     AI_PIPELINE: {
-        ENABLED: false, // Disabled by default - enable when backend is ready
-        KEYFRAME_INTERVAL: 2000, // Increased to reduce load
+        ENABLED: false,
+        KEYFRAME_INTERVAL: 2000,
         MAX_BLEND_ALPHA: 0.7,
         BLEND_TRANSITION_DURATION: 500,
-        JPEG_QUALITY: 0.7, // Reduced for better performance
+        JPEG_QUALITY: 0.7,
         MAX_RECONNECT_ATTEMPTS: 3,
         RECONNECT_DELAY: 5000
     },
@@ -119,9 +111,8 @@ const CONFIG = {
     PERFORMANCE: {
         TARGET_FPS: 30,
         LOW_PERFORMANCE_THRESHOLD: 20,
-        RENDER_SCALE: 0.8, // Reduced for better performance
+        RENDER_SCALE: 0.8,
         ENABLE_STATS: true,
-        // Adaptive quality - reduce quality if FPS drops
         ADAPTIVE_QUALITY: true
     },
 
@@ -138,7 +129,6 @@ const CONFIG = {
         SHOW_SKELETON_BONES: false,
         LOG_PERFORMANCE: true,
         ENABLE_ORBIT_CONTROLS: false,
-        // Console logging levels
         VERBOSE: false
     }
 };
