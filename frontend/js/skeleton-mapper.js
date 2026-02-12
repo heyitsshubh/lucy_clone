@@ -1,5 +1,5 @@
-// Skeleton Mapper - Maps MediaPipe pose landmarks to 3D jacket model
-// FIXED VERSION - Correct scaling and positioning
+// Skeleton Mapper - FIXED: Jacket positioning at shoulders, not face
+// Prevents jacket from covering the face
 
 class SkeletonMapper {
     constructor() {
@@ -9,20 +9,20 @@ class SkeletonMapper {
         this.lastPose = null;
         
         // Smoothing parameters
-        this.smoothingFactor = 0.5; // ✅ Increased for smoother tracking
+        this.smoothingFactor = 0.5;
         this.lastPosition = { x: 0, y: 0, z: 0 };
         this.lastRotation = { x: 0, y: 0, z: 0 };
         this.lastScale = 1.0;
         
         // Performance optimization
         this.lastUpdateTime = 0;
-        this.updateInterval = 1000 / 30; // 30 FPS
+        this.updateInterval = 1000 / 30;
         
-        // ✅ FIXED Calibration values - more realistic
+        // ✅ CRITICAL FIX: Adjusted calibration to keep jacket on torso, NOT face
         this.calibration = {
-            scaleMultiplier: 3.5,    // ✅ Reduced from 8.0 (was too large)
-            depthMultiplier: -8.0,   // ✅ Further back for better fit
-            verticalOffset: -0.5,    // ✅ Slight adjustment
+            scaleMultiplier: 2.8,     // ✅ Reduced from 3.5
+            depthMultiplier: -8.0,    // Z-axis (depth)
+            verticalOffset: 1.2,      // ✅ MOVED DOWN (was -0.5, positive moves DOWN)
             horizontalOffset: 0.0,
         };
     }
@@ -64,14 +64,14 @@ class SkeletonMapper {
             const rightHip = landmarks[CONFIG.SKELETON.LANDMARKS.RIGHT_HIP];
             const nose = landmarks[CONFIG.SKELETON.LANDMARKS.NOSE];
 
-            // ✅ Check visibility with lower threshold
-            if (!this.arePointsVisible([leftShoulder, rightShoulder, leftHip, rightHip], 0.3)) {
-                console.warn('Key points not visible');
+            // Check visibility
+            if (!this.arePointsVisible([leftShoulder, rightShoulder], 0.3)) {
+                console.warn('Shoulders not visible');
                 return;
             }
 
-            // Calculate transformations
-            const position = this.calculatePosition(leftShoulder, rightShoulder, leftHip, rightHip);
+            // ✅ Calculate transformations using ONLY shoulders (not hips)
+            const position = this.calculatePosition(leftShoulder, rightShoulder);
             const rotation = this.calculateRotation(leftShoulder, rightShoulder, nose);
             const scale = this.calculateScale(leftShoulder, rightShoulder);
 
@@ -85,10 +85,10 @@ class SkeletonMapper {
             jacket.rotation.set(smoothedRotation.x, smoothedRotation.y, smoothedRotation.z);
             jacket.scale.set(smoothedScale, smoothedScale, smoothedScale);
 
-            // ✅ Auto-show jacket on first successful update
+            // Auto-show jacket on first successful update
             if (!jacket.visible) {
                 jacket.visible = true;
-                console.log('✅ Jacket now visible and tracking body');
+                console.log('✅ Jacket now visible and tracking shoulders');
             }
 
             this.lastPose = poseData;
@@ -99,21 +99,24 @@ class SkeletonMapper {
     }
 
     /**
-     * Calculate 3D position for the jacket
+     * ✅ FIXED: Calculate position at SHOULDERS only, not torso
      */
-    calculatePosition(leftShoulder, rightShoulder, leftHip, rightHip) {
-        // Calculate torso center (between shoulders and hips)
-        const torsoCenter = {
-            x: (leftShoulder.x + rightShoulder.x + leftHip.x + rightHip.x) / 4,
-            y: (leftShoulder.y + rightShoulder.y + leftHip.y + rightHip.y) / 4,
-            z: (leftShoulder.z + rightShoulder.z + leftHip.z + rightHip.z) / 4
+    calculatePosition(leftShoulder, rightShoulder) {
+        // ✅ Use ONLY shoulder center (not hips)
+        const shoulderCenter = {
+            x: (leftShoulder.x + rightShoulder.x) / 2,
+            y: (leftShoulder.y + rightShoulder.y) / 2,
+            z: (leftShoulder.z + rightShoulder.z) / 2
         };
 
-        // ✅ Convert normalized coordinates to 3D world space
-        // MediaPipe gives 0-1, we need -5 to 5 range
-        const x = (torsoCenter.x - 0.5) * 10 + this.calibration.horizontalOffset;
-        const y = -(torsoCenter.y - 0.5) * 10 + this.calibration.verticalOffset;
-        const z = this.calibration.depthMultiplier + (torsoCenter.z * 3); // ✅ Adjusted depth scaling
+        // Convert normalized coordinates (0-1) to 3D world space
+        const x = (shoulderCenter.x - 0.5) * 10 + this.calibration.horizontalOffset;
+        
+        // ✅ CRITICAL: Positive Y moves DOWN in Three.js (inverted)
+        // verticalOffset = 1.2 pushes jacket DOWN below shoulders
+        const y = -(shoulderCenter.y - 0.5) * 10 + this.calibration.verticalOffset;
+        
+        const z = this.calibration.depthMultiplier + (shoulderCenter.z * 3);
 
         return { x, y, z };
     }
@@ -122,19 +125,19 @@ class SkeletonMapper {
      * Calculate rotation for the jacket
      */
     calculateRotation(leftShoulder, rightShoulder, nose) {
-        // Calculate shoulder angle (roll) - when user tilts head
+        // Calculate shoulder angle (roll)
         const dx = rightShoulder.x - leftShoulder.x;
         const dy = rightShoulder.y - leftShoulder.y;
         const rollAngle = Math.atan2(dy, dx);
 
-        // Calculate body rotation (yaw) - when user turns left/right
+        // Calculate body rotation (yaw)
         const shoulderWidth = Math.sqrt(dx * dx + dy * dy);
         const depthDiff = rightShoulder.z - leftShoulder.z;
-        const yawAngle = Math.atan2(depthDiff, shoulderWidth) * 1.5; // ✅ Reduced multiplier
+        const yawAngle = Math.atan2(depthDiff, shoulderWidth) * 1.5;
 
-        // Calculate pitch (forward/backward lean)
+        // Calculate pitch
         const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-        const pitchAngle = (nose.y - shoulderCenterY) * 0.3; // ✅ Reduced sensitivity
+        const pitchAngle = (nose.y - shoulderCenterY) * 0.3;
 
         return {
             x: pitchAngle,
@@ -147,18 +150,14 @@ class SkeletonMapper {
      * Calculate scale based on shoulder width
      */
     calculateScale(leftShoulder, rightShoulder) {
-        // Calculate shoulder width in normalized space (0-1)
         const dx = rightShoulder.x - leftShoulder.x;
         const dy = rightShoulder.y - leftShoulder.y;
         const shoulderWidth = Math.sqrt(dx * dx + dy * dy);
 
-        // ✅ More reasonable scaling
-        // Typical shoulder width: 0.2-0.35 normalized
-        // Target jacket scale: 0.8-1.5
+        // ✅ Reduced scale multiplier
         const scale = shoulderWidth * this.calibration.scaleMultiplier;
 
-        // ✅ Tighter clamp range for realistic sizing
-        return Utils.clamp(scale, 0.6, 2.0);
+        return Utils.clamp(scale, 0.5, 1.8); // ✅ Tighter clamp
     }
 
     /**
@@ -216,7 +215,7 @@ class SkeletonMapper {
     /**
      * Check if key points are visible
      */
-    arePointsVisible(points, minVisibility = 0.3) { // ✅ Lowered threshold
+    arePointsVisible(points, minVisibility = 0.3) {
         return points.every(point => 
             point && point.visibility !== undefined && point.visibility > minVisibility
         );
@@ -257,7 +256,7 @@ class SkeletonMapper {
     }
 
     /**
-     * Update calibration values
+     * Update calibration values dynamically
      */
     updateCalibration(params) {
         this.calibration = { ...this.calibration, ...params };
@@ -280,7 +279,7 @@ class SkeletonMapper {
     }
     
     /**
-     * ✅ Force show jacket (for testing)
+     * Force show jacket
      */
     forceShowJacket() {
         const jacket = modelLoader.getModel();
@@ -291,7 +290,7 @@ class SkeletonMapper {
     }
     
     /**
-     * ✅ Hide jacket
+     * Hide jacket
      */
     hideJacket() {
         const jacket = modelLoader.getModel();
