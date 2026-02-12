@@ -108,7 +108,7 @@ class FabricResponse(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize models and processors on startup"""
-    global vton_model, fabric_processor, model_loading, model_load_error
+    global vton_model, fabric_processor
     
     print("=" * 60)
     print("Starting Lucy Virtual Try-On Backend")
@@ -117,13 +117,23 @@ async def startup_event():
     # Check for GPU
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
-    if device == "cuda":
-        print(f"GPU: {torch.cuda.get_device_name(0)}")
     
-    # Initialize Virtual Try-On Model (async to avoid blocking startup)
-    print("\nLoading AI model in background...")
-    model_loading = True
-    model_load_error = None
+    # Check if we should load AI model (requires more RAM)
+    load_ai_model = os.getenv("LOAD_AI_MODEL", "false").lower() == "true"
+    
+    if load_ai_model:
+        # Initialize Virtual Try-On Model
+        print("\nLoading AI model...")
+        try:
+            vton_model = VirtualTryOnModel(device=device)
+            await vton_model.load_model()
+            print("✓ AI model loaded successfully")
+        except Exception as e:
+            print(f"✗ Error loading AI model: {e}")
+            print("  Running in fallback mode (3D only)")
+    else:
+        print("\nAI model loading disabled (running in 3D-only mode)")
+        print("Set LOAD_AI_MODEL=true to enable AI features")
 
     async def init_model():
         global vton_model, model_loading, model_load_error
