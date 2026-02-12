@@ -30,7 +30,9 @@ class SceneManager {
             this.scene.background = null;
 
             // Create camera
-            const aspect = window.innerWidth / window.innerHeight;
+            const viewWidth = this.canvas.clientWidth || window.innerWidth;
+            const viewHeight = this.canvas.clientHeight || window.innerHeight;
+            const aspect = viewWidth / viewHeight;
             this.camera = new THREE.PerspectiveCamera(
                 CONFIG.SCENE.CAMERA_FOV,
                 aspect,
@@ -48,7 +50,7 @@ class SceneManager {
                 preserveDrawingBuffer: true // Required for screenshots
             });
             
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setSize(viewWidth, viewHeight);
             this.renderer.setPixelRatio(window.devicePixelRatio * CONFIG.PERFORMANCE.RENDER_SCALE);
             
             // ✅ FIX: Disable tone mapping to prevent color washing
@@ -140,8 +142,8 @@ class SceneManager {
     onWindowResize() {
         if (!this.camera || !this.renderer) return;
 
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const width = this.canvas.clientWidth || window.innerWidth;
+        const height = this.canvas.clientHeight || window.innerHeight;
 
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();

@@ -8,22 +8,22 @@ class SkeletonMapper {
         this.initialized = false;
         this.lastPose = null;
         
-        // Smoothing parameters
-        this.smoothingFactor = 0.5;
+        // Smoothing parameters - lower = more responsive, less drift
+        this.smoothingFactor = 0.2;  // ✅ Reduced to prevent autonomous movement
         this.lastPosition = { x: 0, y: 0, z: 0 };
         this.lastRotation = { x: 0, y: 0, z: 0 };
         this.lastScale = 1.0;
         
         // Performance optimization
         this.lastUpdateTime = 0;
-        this.updateInterval = 1000 / 30;
+        this.updateInterval = 1000 / 60;  // ✅ 60 FPS for smoother tracking
         
-        // ✅ CRITICAL FIX: Adjusted calibration to keep jacket on torso, NOT face
+        // ✅ Split layout calibration - jacket displays on right side
         this.calibration = {
-            scaleMultiplier: 2.8,     // ✅ Reduced from 3.5
+            scaleMultiplier: 5.5,     // ✅ Bigger size for right panel
             depthMultiplier: -8.0,    // Z-axis (depth)
-            verticalOffset: 1.2,      // ✅ MOVED DOWN (was -0.5, positive moves DOWN)
-            horizontalOffset: 0.0,
+            verticalOffset: 0.0,      // ✅ Centered vertically
+            horizontalOffset: 6.0,    // ✅ Shifted to the right
         };
     }
 
@@ -41,7 +41,10 @@ class SkeletonMapper {
      * Update jacket position/rotation/scale based on pose data
      */
     update(poseData) {
-        if (!this.initialized || !poseData) return;
+        if (!this.initialized || !poseData) {
+            console.log('⚠️ Skeleton update skipped:', !this.initialized ? 'not initialized' : 'no pose data');
+            return;
+        }
 
         // Throttle updates to 30 FPS
         const now = performance.now();
@@ -51,10 +54,16 @@ class SkeletonMapper {
         this.lastUpdateTime = now;
 
         const jacket = modelLoader.getModel();
-        if (!jacket) return;
+        if (!jacket) {
+            console.log('⚠️ Jacket model not found');
+            return;
+        }
 
         const landmarks = poseData.landmarks;
-        if (!landmarks || landmarks.length < 33) return;
+        if (!landmarks || landmarks.length < 33) {
+            console.log('⚠️ Invalid landmarks:', landmarks?.length);
+            return;
+        }
 
         try {
             // Get key body points
@@ -66,7 +75,7 @@ class SkeletonMapper {
 
             // Check visibility
             if (!this.arePointsVisible([leftShoulder, rightShoulder], 0.3)) {
-                console.warn('Shoulders not visible');
+                console.log('⚠️ Shoulders not visible:', leftShoulder.visibility, rightShoulder.visibility);
                 return;
             }
 
@@ -110,13 +119,13 @@ class SkeletonMapper {
         };
 
         // Convert normalized coordinates (0-1) to 3D world space
-        const x = (shoulderCenter.x - 0.5) * 10 + this.calibration.horizontalOffset;
+        // ✅ Reduced multipliers for less sensitive, smoother movement
+        const x = (shoulderCenter.x - 0.5) * 5 + this.calibration.horizontalOffset;
         
         // ✅ CRITICAL: Positive Y moves DOWN in Three.js (inverted)
-        // verticalOffset = 1.2 pushes jacket DOWN below shoulders
-        const y = -(shoulderCenter.y - 0.5) * 10 + this.calibration.verticalOffset;
+        const y = -(shoulderCenter.y - 0.5) * 5 + this.calibration.verticalOffset;
         
-        const z = this.calibration.depthMultiplier + (shoulderCenter.z * 3);
+        const z = this.calibration.depthMultiplier + (shoulderCenter.z * 2);
 
         return { x, y, z };
     }
@@ -140,8 +149,8 @@ class SkeletonMapper {
         const pitchAngle = (nose.y - shoulderCenterY) * 0.3;
 
         return {
-            x: pitchAngle,
-            y: yawAngle,
+            x: Math.PI + pitchAngle,  // ✅ Flip upright (180 degrees)
+            y: Math.PI + yawAngle,    // ✅ Face camera (180 degrees)
             z: -rollAngle
         };
     }
@@ -154,10 +163,10 @@ class SkeletonMapper {
         const dy = rightShoulder.y - leftShoulder.y;
         const shoulderWidth = Math.sqrt(dx * dx + dy * dy);
 
-        // ✅ Reduced scale multiplier
+        // ✅ Bigger scale for split layout
         const scale = shoulderWidth * this.calibration.scaleMultiplier;
 
-        return Utils.clamp(scale, 0.5, 1.8); // ✅ Tighter clamp
+        return Utils.clamp(scale, 1.0, 4.5); // ✅ Allow bigger jacket
     }
 
     /**

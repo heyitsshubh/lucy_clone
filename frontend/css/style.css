@@ -36,6 +36,11 @@
     /* Safe areas for mobile */
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    /* Layout sizes */
+    --top-bar-height: 56px;
+    --fabric-panel-height: 180px;
+    --split-gap: 0px;
 }
 
 * {
@@ -117,11 +122,28 @@ body {
 }
 
 #main-canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    position: fixed;
+    top: calc(var(--safe-top) + var(--top-bar-height));
+    right: 0;
+    width: 50vw;
+    height: calc(100vh - var(--top-bar-height) - var(--fabric-panel-height) - var(--safe-top) - var(--safe-bottom));
     display: block;
+}
+
+#camera-video {
+    position: fixed;
+    top: calc(var(--safe-top) + var(--top-bar-height));
+    left: 0;
+    width: 50vw;
+    height: 50vw;
+    max-height: calc(100vh - var(--top-bar-height) - var(--fabric-panel-height) - var(--safe-top) - var(--safe-bottom));
+    max-width: 50vw;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block !important;
+    z-index: 1;
+    background: #000;
+    border-right: 1px solid var(--border);
 }
 
 /* ============================================================================

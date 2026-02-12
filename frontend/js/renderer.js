@@ -34,10 +34,10 @@ class CompositeRenderer {
             
             // Setup canvas with performance optimization
             const scale = CONFIG.PERFORMANCE.RENDER_SCALE || 0.8;
-            this.canvas.width = window.innerWidth * scale;
-            this.canvas.height = window.innerHeight * scale;
-            this.canvas.style.width = window.innerWidth + 'px';
-            this.canvas.style.height = window.innerHeight + 'px';
+            const displayWidth = this.canvas.clientWidth || window.innerWidth;
+            const displayHeight = this.canvas.clientHeight || window.innerHeight;
+            this.canvas.width = displayWidth * scale;
+            this.canvas.height = displayHeight * scale;
             
             console.log(`Canvas resolution: ${this.canvas.width}x${this.canvas.height} (scale: ${scale})`);
             
@@ -117,11 +117,12 @@ class CompositeRenderer {
         this.videoPlane = new THREE.Mesh(geometry, material);
         this.videoPlane.position.z = -10; // Behind everything
         this.videoPlane.renderOrder = -1000; // ✅ Render first
+        this.videoPlane.visible = false; // ✅ Hide - using HTML video element instead
         
         // Add to scene
         sceneManager.add(this.videoPlane);
         
-        console.log('✓ Video background ready');
+        console.log('✓ Video background ready (hidden - using split layout)');
     }
 
     /**
@@ -277,26 +278,24 @@ class CompositeRenderer {
      * Handle window resize with optimization
      */
     onResize() {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const displayWidth = this.canvas.clientWidth || window.innerWidth;
+        const displayHeight = this.canvas.clientHeight || window.innerHeight;
         const scale = CONFIG.PERFORMANCE.RENDER_SCALE || 0.8;
         
         // Update canvas size
-        this.canvas.width = width * scale;
-        this.canvas.height = height * scale;
-        this.canvas.style.width = width + 'px';
-        this.canvas.style.height = height + 'px';
+        this.canvas.width = displayWidth * scale;
+        this.canvas.height = displayHeight * scale;
         
         // Update Three.js renderer
         const renderer = sceneManager.getRenderer();
         if (renderer) {
-            renderer.setSize(width, height);
+            renderer.setSize(displayWidth, displayHeight);
         }
         
         // Update camera aspect ratio
         const camera = sceneManager.getCamera();
         if (camera) {
-            camera.aspect = width / height;
+            camera.aspect = displayWidth / displayHeight;
             camera.updateProjectionMatrix();
         }
         
@@ -310,7 +309,7 @@ class CompositeRenderer {
             this.videoPlane.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
         }
         
-        console.log(`Window resized: ${width}x${height} (render: ${this.canvas.width}x${this.canvas.height})`);
+        console.log(`Window resized: ${displayWidth}x${displayHeight} (render: ${this.canvas.width}x${this.canvas.height})`);
     }
 
     /**
