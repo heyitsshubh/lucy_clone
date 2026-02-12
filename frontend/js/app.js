@@ -190,18 +190,39 @@ class LucyApp {
 // Create global app instance
 const app = new LucyApp();
 
-// Initialize when DOM is ready
+// Wait for MediaPipe scripts to load
+function waitForMediaPipe() {
+    return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+            if (window.Pose && window.Camera) {
+                clearInterval(checkInterval);
+                resolve();
+            }
+        }, 100);
+        
+        // Timeout after 10 seconds
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve();
+        }, 10000);
+    });
+}
+
+// Initialize when DOM and MediaPipe are ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+        await waitForMediaPipe();
         app.init().catch(error => {
             console.error('Fatal error:', error);
             Utils.showError('Failed to start application. Please refresh the page.');
         });
     });
 } else {
-    app.init().catch(error => {
-        console.error('Fatal error:', error);
-        Utils.showError('Failed to start application. Please refresh the page.');
+    waitForMediaPipe().then(() => {
+        app.init().catch(error => {
+            console.error('Fatal error:', error);
+            Utils.showError('Failed to start application. Please refresh the page.');
+        });
     });
 }
 
