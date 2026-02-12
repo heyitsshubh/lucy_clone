@@ -6,23 +6,22 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 websockets==12.0
 
-# Deep Learning - Compatible with Python 3.11
-torch==2.10.0
-torchvision==0.20.0
-diffusers==0.30.0
-transformers==4.45.0
-accelerate==1.0.0
+# Deep Learning
+torch==2.0.1
+torchvision==0.15.2
+diffusers==0.25.1
+transformers==4.37.2
+accelerate==0.26.1
 
 # Image Processing
-Pillow==10.2.0
-opencv-python-headless==4.9.0.80
-numpy==1.26.4
+Pillow==11.0.0
+opencv-python==4.9.0.80
+numpy==1.26.3
 
 # Utilities
-pydantic==2.9.0
-python-dotenv==1.0.1
+pydantic==2.5.3
+python-dotenv==1.0.0
 aiofiles==23.2.1
-typing-extensions==4.12.0
 ```
 
 ### 3. Create/Update `runtime.txt` in your backend folder:
