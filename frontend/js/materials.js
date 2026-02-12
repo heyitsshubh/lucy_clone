@@ -23,9 +23,10 @@ class MaterialsManager {
                 throw new Error('Jacket mesh not found');
             }
 
-            // Check if using solid color or textures
+            // -----------------------------
+            // ✅ COLOR-BASED FABRIC
+            // -----------------------------
             if (fabricData.color) {
-                // Simple color-based material
                 const material = new THREE.MeshStandardMaterial({
                     color: new THREE.Color(fabricData.color),
                     roughness: fabricData.roughness || 0.8,
@@ -33,13 +34,25 @@ class MaterialsManager {
                     side: THREE.DoubleSide
                 });
 
-                this.applyMaterialToMesh(mesh, material);
+                const oldMaterial = mesh.material;
+
+                mesh.material = material;
+                this.currentMaterial = material;
                 this.currentFabric = fabricData;
+
+                if (oldMaterial && oldMaterial !== material) {
+                    this.disposeMaterial(oldMaterial);
+                }
+
+                modelLoader.setVisible(true);
+
                 console.log('Fabric applied (color):', fabricData.name);
-                return;
+                return true;
             }
 
-            // Load PBR textures if URLs provided
+            // -----------------------------
+            // ✅ TEXTURE-BASED (PBR) FABRIC
+            // -----------------------------
             const [diffuseMap, normalMap, roughnessMap] = await Promise.all([
                 fabricData.diffuseUrl ? this.loadTexture(fabricData.diffuseUrl) : null,
                 fabricData.normalUrl ? this.loadTexture(fabricData.normalUrl) : null,
@@ -58,7 +71,6 @@ class MaterialsManager {
                 }
             });
 
-            // Create PBR material
             const material = new THREE.MeshStandardMaterial({
                 map: diffuseMap,
                 normalMap: normalMap,
@@ -69,25 +81,20 @@ class MaterialsManager {
                 side: THREE.FrontSide
             });
 
-            // Store old material for cleanup
             const oldMaterial = mesh.material;
 
-            // Apply new material
             mesh.material = material;
             this.currentMaterial = material;
             this.currentFabric = fabricData;
-            
-            // Store textures
+
             this.textures.diffuse = diffuseMap;
             this.textures.normal = normalMap;
             this.textures.roughness = roughnessMap;
 
-            // Clean up old material
             if (oldMaterial && oldMaterial !== material) {
                 this.disposeMaterial(oldMaterial);
             }
 
-            // Show the jacket
             modelLoader.setVisible(true);
 
             console.log('Fabric applied successfully');
@@ -111,7 +118,7 @@ class MaterialsManager {
                 (texture) => {
                     texture.encoding = THREE.sRGBEncoding;
                     texture.flipY = false;
-                    texture.anisotropy = 16; // Better quality
+                    texture.anisotropy = 16;
                     resolve(texture);
                 },
                 undefined,
@@ -175,12 +182,13 @@ class MaterialsManager {
             this.disposeMaterial(this.currentMaterial);
             this.currentMaterial = null;
         }
-        
+
         this.currentFabric = null;
+
         Object.keys(this.textures).forEach(key => {
             this.textures[key] = null;
         });
-        
+
         modelLoader.setVisible(false);
     }
 
@@ -201,14 +209,12 @@ class MaterialsManager {
      * Create default material (for testing)
      */
     createDefaultMaterial() {
-        const material = new THREE.MeshStandardMaterial({
+        return new THREE.MeshStandardMaterial({
             color: 0x4477ff,
             roughness: 0.8,
             metalness: 0.0,
             side: THREE.FrontSide
         });
-        
-        return material;
     }
 
     /**
