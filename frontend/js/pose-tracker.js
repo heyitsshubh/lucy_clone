@@ -1,4 +1,6 @@
 // MediaPipe Pose tracking module for Lucy Virtual Try-On
+import { Camera } from "@mediapipe/camera_utils";
+import { Pose, POSE_CONNECTIONS } from "@mediapipe/pose";
 
 class PoseTracker {
     constructor() {
