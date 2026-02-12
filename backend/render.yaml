@@ -2,12 +2,17 @@ services:
   - type: web
     name: lucy-backend
     runtime: python
+    env: python
+    region: oregon
+    plan: free
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python main.py
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11
+        value: 3.11.0
       - key: DEVICE
         value: cpu
       - key: DEBUG
         value: false
+      - key: PORT
+        sync: false
