@@ -104,7 +104,6 @@ class FabricResponse(BaseModel):
 # ============================================================================
 # Startup and Shutdown Events
 # ============================================================================
-
 @app.on_event("startup")
 async def startup_event():
     """Initialize models and processors on startup"""
@@ -120,25 +119,34 @@ async def startup_event():
     if device == "cuda":
         print(f"GPU: {torch.cuda.get_device_name(0)}")
     
-    # Initialize Virtual Try-On Model (async to avoid blocking startup)
-    print("\nLoading AI model in background...")
-    model_loading = True
-    model_load_error = None
+    # Check environment variable
+    load_ai_model = os.environ.get("LOAD_AI_MODEL", "true").lower() == "true"
 
-    async def init_model():
-        global vton_model, model_loading, model_load_error
-        try:
-            vton_model = VirtualTryOnModel(device=device)
-            await vton_model.load_model()
-            print("✓ AI model loaded successfully")
-        except Exception as e:
-            model_load_error = str(e)
-            print(f"✗ Error loading AI model: {e}")
-            print("  Running in fallback mode (3D only)")
-        finally:
-            model_loading = False
+    if load_ai_model:
+        # Initialize Virtual Try-On Model (async to avoid blocking startup)
+        print("\nLoading AI model in background...")
+        model_loading = True
+        model_load_error = None
 
-    asyncio.create_task(init_model())
+        async def init_model():
+            global vton_model, model_loading, model_load_error
+            try:
+                vton_model = VirtualTryOnModel(device=device)
+                await vton_model.load_model()
+                print("✓ AI model loaded successfully")
+            except Exception as e:
+                model_load_error = str(e)
+                print(f"✗ Error loading AI model: {e}")
+                print("  Running in fallback mode (3D only)")
+            finally:
+                model_loading = False
+
+        asyncio.create_task(init_model())
+    else:
+        print("\nSkipping AI model load (LOAD_AI_MODEL=false)")
+        vton_model = None
+        model_loading = False
+        model_load_error = "Skipped by environment variable"
     
     # Initialize Fabric Processor
     print("\nInitializing fabric processor...")

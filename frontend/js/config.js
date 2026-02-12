@@ -2,8 +2,8 @@
 const CONFIG = {
     // Backend API configuration
     API: {
-        BASE_URL: 'http://localhost:5000',       // Change if backend is hosted elsewhere
-        WS_URL: 'ws://localhost:5000/ws',        // WebSocket URL
+        BASE_URL: 'http://localhost:8000',       // Change if backend is hosted elsewhere
+        WS_URL: 'ws://localhost:8000/ws',        // WebSocket URL
         ENDPOINTS: {
             HEALTH: '/health',
             FABRIC_CATALOG: '/api/fabric/catalog',
