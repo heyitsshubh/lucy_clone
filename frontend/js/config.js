@@ -1,9 +1,18 @@
 // Configuration file for Lucy Virtual Try-On
+// UPDATED VERSION - Offline-first with proper fallbacks
+
 const CONFIG = {
     // Backend API configuration
     API: {
-        BASE_URL: 'https://lucy-clone-vvd7.onrender.com',       // Change if backend is hosted elsewhere
-        WS_URL: 'ws://lucy-clone-vvd7.onrender.com/ws',        // WebSocket URL
+        // Change these to your actual Render.com deployment URL
+        // For local testing, use: 'http://localhost:5000'
+        BASE_URL: 'https://lucy-clone-vvd7.onrender.com',
+        // IMPORTANT: Use WSS:// for HTTPS sites, WS:// for HTTP
+        WS_URL: 'wss://lucy-clone-vvd7.onrender.com/ws',
+        
+        // Timeout settings
+        REQUEST_TIMEOUT: 10000, // 10 seconds
+        
         ENDPOINTS: {
             HEALTH: '/health',
             FABRIC_CATALOG: '/api/fabric/catalog',
@@ -11,6 +20,16 @@ const CONFIG = {
             VIRTUAL_TRYON: '/virtual-tryon',
             ROOT: '/'
         }
+    },
+
+    // Offline mode configuration
+    OFFLINE_MODE: {
+        // If true, app will work without backend
+        ENABLED: true,
+        // Use mock data when backend unavailable
+        USE_MOCK_DATA: true,
+        // Show offline indicator
+        SHOW_INDICATOR: true
     },
 
     // Camera configuration
@@ -27,8 +46,8 @@ const CONFIG = {
         CAMERA_FOV: 50,
         CAMERA_NEAR: 0.1,
         CAMERA_FAR: 2000,
-        AMBIENT_LIGHT_INTENSITY: 0.6,
-        DIRECTIONAL_LIGHT_INTENSITY: 0.8
+        AMBIENT_LIGHT_INTENSITY: 0.8,
+        DIRECTIONAL_LIGHT_INTENSITY: 0.6
     },
 
     // Jacket model configuration
@@ -51,7 +70,7 @@ const CONFIG = {
 
     // Skeleton mapping configuration
     SKELETON: {
-        SMOOTHING_FACTOR: 0.7,
+        SMOOTHING_FACTOR: 0.5, // Increased for smoother motion
         SCALE_MULTIPLIERS: {
             SHOULDERS: 1.2,
             TORSO: 1.0,
@@ -80,13 +99,13 @@ const CONFIG = {
 
     // AI Pipeline configuration
     AI_PIPELINE: {
-        ENABLED: true,
-        KEYFRAME_INTERVAL: 1500,
+        ENABLED: false, // Disabled by default - enable when backend is ready
+        KEYFRAME_INTERVAL: 2000, // Increased to reduce load
         MAX_BLEND_ALPHA: 0.7,
         BLEND_TRANSITION_DURATION: 500,
-        JPEG_QUALITY: 0.75,
-        MAX_RECONNECT_ATTEMPTS: 5,
-        RECONNECT_DELAY: 3000
+        JPEG_QUALITY: 0.7, // Reduced for better performance
+        MAX_RECONNECT_ATTEMPTS: 3,
+        RECONNECT_DELAY: 5000
     },
 
     // Fabric texture configuration
@@ -100,8 +119,10 @@ const CONFIG = {
     PERFORMANCE: {
         TARGET_FPS: 30,
         LOW_PERFORMANCE_THRESHOLD: 20,
-        RENDER_SCALE: 1.0,
-        ENABLE_STATS: true
+        RENDER_SCALE: 0.8, // Reduced for better performance
+        ENABLE_STATS: true,
+        // Adaptive quality - reduce quality if FPS drops
+        ADAPTIVE_QUALITY: true
     },
 
     // UI configuration
@@ -116,7 +137,9 @@ const CONFIG = {
         SHOW_POSE_LANDMARKS: false,
         SHOW_SKELETON_BONES: false,
         LOG_PERFORMANCE: true,
-        ENABLE_ORBIT_CONTROLS: false
+        ENABLE_ORBIT_CONTROLS: false,
+        // Console logging levels
+        VERBOSE: false
     }
 };
 

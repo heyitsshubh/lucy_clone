@@ -1,4 +1,4 @@
-// Fabric selector UI module
+// Fabric selector UI module - FIXED VERSION with offline support
 
 class FabricSelector {
     constructor() {
@@ -8,6 +8,7 @@ class FabricSelector {
         this.scanBtn = document.getElementById('scan-fabric-btn');
         this.scanModal = document.getElementById('fabric-scan-modal');
         this.isLoading = false;
+        this.backendAvailable = false;
     }
 
     /**
@@ -17,82 +18,139 @@ class FabricSelector {
         try {
             console.log('Initializing fabric selector...');
             
-            // Load fabric catalog from backend
-            await this.loadCatalog();
+            // Always load mock fabrics first (offline-first approach)
+            this.fabrics = this.getMockFabrics();
+            this.renderFabrics();
+            
+            // Auto-select first fabric
+            if (this.fabrics.length > 0) {
+                setTimeout(() => {
+                    this.selectFabric(this.fabrics[0]);
+                }, 500);
+            }
+            
+            // Try to load from backend in background
+            if (!CONFIG.OFFLINE_MODE.ENABLED) {
+                this.loadCatalogFromBackend();
+            }
             
             // Setup event listeners
             this.setupEventListeners();
             
-            console.log('Fabric selector initialized');
+            console.log('✓ Fabric selector initialized with', this.fabrics.length, 'fabrics');
             
         } catch (error) {
             console.error('Error initializing fabric selector:', error);
-            Utils.showError('Could not load fabric catalog');
+            // Don't throw - we have fallback fabrics
+            Utils.showError('Using offline fabric catalog');
         }
     }
 
     /**
-     * Load fabric catalog from backend
+     * Try to load fabric catalog from backend (non-blocking)
      */
-    async loadCatalog() {
+    async loadCatalogFromBackend() {
         try {
+            console.log('Attempting to load fabrics from backend...');
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), CONFIG.API.REQUEST_TIMEOUT);
+            
             const response = await fetch(
-                `${CONFIG.API.BASE_URL}${CONFIG.API.ENDPOINTS.FABRIC_CATALOG}`
+                `${CONFIG.API.BASE_URL}${CONFIG.API.ENDPOINTS.FABRIC_CATALOG}`,
+                { signal: controller.signal }
             );
             
+            clearTimeout(timeoutId);
+            
             if (!response.ok) {
-                throw new Error('Failed to load catalog');
+                throw new Error('Backend returned error');
             }
             
             const data = await response.json();
-            this.fabrics = data.fabrics || [];
             
-            console.log(`Loaded ${this.fabrics.length} fabrics`);
-            this.renderFabrics();
+            if (data.fabrics && data.fabrics.length > 0) {
+                console.log(`✓ Loaded ${data.fabrics.length} fabrics from backend`);
+                this.fabrics = data.fabrics;
+                this.backendAvailable = true;
+                this.renderFabrics();
+            }
             
         } catch (error) {
-            console.error('Error loading catalog:', error);
-            
-            // Use default/mock fabrics if backend unavailable
-            this.fabrics = this.getMockFabrics();
-            this.renderFabrics();
+            console.log('Backend not available, using offline catalog');
+            this.backendAvailable = false;
+            // Keep using mock fabrics - already loaded
         }
     }
 
     /**
-     * Get mock fabrics for testing
+     * Get mock fabrics for offline mode (ENHANCED with more variety)
      */
     getMockFabrics() {
         return [
             {
-                id: 'denim-blue',
-                name: 'Blue Denim',
-                diffuseUrl: 'assets/textures/denim_blue_diffuse.jpg',
-                normalUrl: 'assets/textures/denim_blue_normal.jpg',
-                roughnessUrl: 'assets/textures/denim_blue_roughness.jpg',
-                thumbnail: 'assets/textures/denim_blue_thumb.jpg',
-                roughness: 0.8,
-                metalness: 0.0
-            },
-            {
                 id: 'leather-black',
                 name: 'Black Leather',
-                diffuseUrl: 'assets/textures/leather_black_diffuse.jpg',
-                normalUrl: 'assets/textures/leather_black_normal.jpg',
-                roughnessUrl: 'assets/textures/leather_black_roughness.jpg',
-                thumbnail: 'assets/textures/leather_black_thumb.jpg',
-                roughness: 0.4,
-                metalness: 0.1
+                color: '#1a1a1a',
+                roughness: 0.3,
+                metalness: 0.2,
+                description: 'Classic black leather with subtle sheen'
+            },
+            {
+                id: 'denim-blue',
+                name: 'Blue Denim',
+                color: '#4169E1',
+                roughness: 0.85,
+                metalness: 0.0,
+                description: 'Casual blue denim fabric'
             },
             {
                 id: 'cotton-grey',
                 name: 'Grey Cotton',
-                diffuseUrl: 'assets/textures/cotton_grey_diffuse.jpg',
-                normalUrl: 'assets/textures/cotton_grey_normal.jpg',
-                roughnessUrl: 'assets/textures/cotton_grey_roughness.jpg',
-                thumbnail: 'assets/textures/cotton_grey_thumb.jpg',
+                color: '#6B7280',
                 roughness: 0.9,
-                metalness: 0.0
+                metalness: 0.0,
+                description: 'Soft grey cotton, breathable'
+            },
+            {
+                id: 'wool-navy',
+                name: 'Navy Wool',
+                color: '#1E3A8A',
+                roughness: 0.75,
+                metalness: 0.0,
+                description: 'Warm navy wool blend'
+            },
+            {
+                id: 'silk-champagne',
+                name: 'Champagne Silk',
+                color: '#F7E7CE',
+                roughness: 0.2,
+                metalness: 0.3,
+                description: 'Luxurious silk with elegant sheen'
+            },
+            {
+                id: 'polyester-red',
+                name: 'Red Polyester',
+                color: '#DC143C',
+                roughness: 0.5,
+                metalness: 0.1,
+                description: 'Vibrant red sports fabric'
+            },
+            {
+                id: 'suede-tan',
+                name: 'Tan Suede',
+                color: '#D2B48C',
+                roughness: 0.95,
+                metalness: 0.0,
+                description: 'Soft suede texture'
+            },
+            {
+                id: 'nylon-olive',
+                name: 'Olive Nylon',
+                color: '#556B2F',
+                roughness: 0.4,
+                metalness: 0.0,
+                description: 'Durable outdoor fabric'
             }
         ];
     }
@@ -101,12 +159,19 @@ class FabricSelector {
      * Render fabric items in UI
      */
     renderFabrics() {
+        if (!this.container) {
+            console.error('Fabric container not found');
+            return;
+        }
+        
         this.container.innerHTML = '';
         
         this.fabrics.forEach(fabric => {
             const item = this.createFabricItem(fabric);
             this.container.appendChild(item);
         });
+        
+        console.log(`Rendered ${this.fabrics.length} fabric items`);
     }
 
     /**
@@ -119,7 +184,15 @@ class FabricSelector {
         
         const thumbnail = document.createElement('div');
         thumbnail.className = 'fabric-thumbnail';
-        thumbnail.style.backgroundImage = `url(${fabric.thumbnail || fabric.diffuseUrl})`;
+        
+        // Use solid color if available, otherwise try image URLs
+        if (fabric.color) {
+            thumbnail.style.backgroundColor = fabric.color;
+            // Add subtle texture overlay
+            thumbnail.style.backgroundImage = 'radial-gradient(circle at 20% 30%, rgba(255,255,255,0.1) 0%, transparent 50%)';
+        } else if (fabric.thumbnail || fabric.diffuseUrl) {
+            thumbnail.style.backgroundImage = `url(${fabric.thumbnail || fabric.diffuseUrl})`;
+        }
         
         const name = document.createElement('span');
         name.textContent = fabric.name;
@@ -143,7 +216,7 @@ class FabricSelector {
             this.isLoading = true;
             console.log('Selecting fabric:', fabric.name);
             
-            // Update UI
+            // Update UI immediately for responsiveness
             document.querySelectorAll('.fabric-item').forEach(item => {
                 item.classList.remove('selected');
             });
@@ -155,15 +228,20 @@ class FabricSelector {
             
             // Show fabric info
             const infoEl = document.getElementById('selected-fabric-info');
-            const nameEl = infoEl.querySelector('.fabric-name');
-            nameEl.textContent = fabric.name;
-            infoEl.style.display = 'block';
+            if (infoEl) {
+                const nameEl = infoEl.querySelector('.fabric-name');
+                nameEl.textContent = fabric.name;
+                infoEl.style.display = 'block';
+            }
             
             // Apply fabric to jacket
             const success = await materialsManager.applyFabric(fabric);
             
             if (success) {
                 this.selectedFabric = fabric;
+                console.log('✓ Fabric applied successfully');
+            } else {
+                console.warn('Failed to apply fabric');
             }
             
         } catch (error) {
@@ -178,35 +256,57 @@ class FabricSelector {
      * Setup event listeners
      */
     setupEventListeners() {
+        if (!this.scanBtn) {
+            console.warn('Scan button not found');
+            return;
+        }
+        
         // Scan fabric button
         this.scanBtn.addEventListener('click', () => {
+            if (!this.backendAvailable && !CONFIG.OFFLINE_MODE.ENABLED) {
+                Utils.showError('Fabric scanning requires backend connection');
+                return;
+            }
             this.openScanModal();
         });
         
         // Close scan modal
-        document.getElementById('fabric-scan-close').addEventListener('click', () => {
-            this.closeScanModal();
-        });
+        const closeBtn = document.getElementById('fabric-scan-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.closeScanModal();
+            });
+        }
         
         // File upload
-        document.getElementById('fabric-upload').addEventListener('change', (e) => {
-            this.handleFabricUpload(e.target.files[0]);
-        });
+        const uploadInput = document.getElementById('fabric-upload');
+        if (uploadInput) {
+            uploadInput.addEventListener('change', (e) => {
+                this.handleFabricUpload(e.target.files[0]);
+            });
+        }
     }
 
     /**
      * Open fabric scan modal
      */
     openScanModal() {
-        this.scanModal.classList.add('active');
+        if (this.scanModal) {
+            this.scanModal.classList.add('active');
+        }
     }
 
     /**
      * Close fabric scan modal
      */
     closeScanModal() {
-        this.scanModal.classList.remove('active');
-        document.getElementById('scan-processing').style.display = 'none';
+        if (this.scanModal) {
+            this.scanModal.classList.remove('active');
+            const processingEl = document.getElementById('scan-processing');
+            if (processingEl) {
+                processingEl.style.display = 'none';
+            }
+        }
     }
 
     /**
@@ -215,9 +315,18 @@ class FabricSelector {
     async handleFabricUpload(file) {
         if (!file) return;
         
+        if (!this.backendAvailable) {
+            Utils.showError('Backend not available for fabric processing');
+            this.closeScanModal();
+            return;
+        }
+        
         try {
             // Show processing UI
-            document.getElementById('scan-processing').style.display = 'block';
+            const processingEl = document.getElementById('scan-processing');
+            if (processingEl) {
+                processingEl.style.display = 'block';
+            }
             
             // Convert to base64
             const base64 = await Utils.blobToBase64(file);
@@ -262,13 +371,16 @@ class FabricSelector {
             // Close modal
             this.closeScanModal();
             
-            Utils.showError('Fabric scanned successfully!'); // Using error toast for success message
+            Utils.showError('Fabric scanned successfully!');
             
         } catch (error) {
             console.error('Error uploading fabric:', error);
             Utils.showError('Could not process fabric photo');
         } finally {
-            document.getElementById('scan-processing').style.display = 'none';
+            const processingEl = document.getElementById('scan-processing');
+            if (processingEl) {
+                processingEl.style.display = 'none';
+            }
         }
     }
 
@@ -285,6 +397,13 @@ class FabricSelector {
     addFabric(fabric) {
         this.fabrics.push(fabric);
         this.renderFabrics();
+    }
+    
+    /**
+     * Check if backend is available
+     */
+    isBackendAvailable() {
+        return this.backendAvailable;
     }
 }
 

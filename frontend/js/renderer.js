@@ -1,5 +1,5 @@
-// Composite Renderer - Combines camera feed with 3D jacket overlay
-// This is what creates the AR experience
+// Composite Renderer - OPTIMIZED VERSION
+// Combines camera feed with 3D jacket overlay with better performance
 
 class CompositeRenderer {
     constructor() {
@@ -10,15 +10,15 @@ class CompositeRenderer {
         this.isRunning = false;
         this.animationId = null;
         
-        // AI blending
-        this.aiCanvas = document.createElement('canvas');
-        this.aiCtx = this.aiCanvas.getContext('2d');
-        this.latestAIFrame = null;
-        
         // Performance tracking
         this.frameCount = 0;
         this.lastFpsUpdate = performance.now();
+        this.lastRenderTime = performance.now();
         this.fps = 0;
+        
+        // FPS smoothing
+        this.fpsHistory = [];
+        this.fpsHistorySize = 10;
     }
 
     /**
@@ -26,26 +26,30 @@ class CompositeRenderer {
      */
     init(width, height) {
         try {
-            console.log('Initializing CompositeRenderer...');
+            console.log('Initializing CompositeRenderer (Optimized)...');
             
             // Store dimensions
             this.width = width;
             this.height = height;
             
-            // Setup canvas
-            this.canvas.width = window.innerWidth;
-            this.canvas.height = window.innerHeight;
-            this.ctx = this.canvas.getContext('2d');
+            // Setup canvas with performance optimization
+            const scale = CONFIG.PERFORMANCE.RENDER_SCALE || 0.8;
+            this.canvas.width = window.innerWidth * scale;
+            this.canvas.height = window.innerHeight * scale;
+            this.canvas.style.width = window.innerWidth + 'px';
+            this.canvas.style.height = window.innerHeight + 'px';
             
-            // Setup AI canvas (same size as video)
-            this.aiCanvas.width = width;
-            this.aiCanvas.height = height;
+            console.log(`Canvas resolution: ${this.canvas.width}x${this.canvas.height} (scale: ${scale})`);
             
-            // Setup video texture for background
+            // Setup video background
             this.setupVideoBackground();
             
-            // Handle window resize
-            window.addEventListener('resize', () => this.onResize());
+            // Handle window resize (debounced)
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => this.onResize(), 250);
+            });
             
             console.log('✅ CompositeRenderer initialized');
             
@@ -66,11 +70,32 @@ class CompositeRenderer {
             return;
         }
 
+        // Wait for video to be actually ready
+        const waitForVideo = () => {
+            if (video.readyState >= 2) {
+                this.createVideoTexture(video);
+            } else {
+                setTimeout(waitForVideo, 100);
+            }
+        };
+        
+        waitForVideo();
+    }
+
+    /**
+     * Create video texture once video is ready
+     */
+    createVideoTexture(video) {
+        console.log('Creating video texture...');
+        console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+        console.log('Video ready state:', video.readyState);
+
         // Create video texture
         this.videoTexture = new THREE.VideoTexture(video);
         this.videoTexture.minFilter = THREE.LinearFilter;
         this.videoTexture.magFilter = THREE.LinearFilter;
         this.videoTexture.format = THREE.RGBFormat;
+        this.videoTexture.needsUpdate = true;
 
         // Create plane geometry to fit the screen
         const aspect = this.width / this.height;
@@ -81,16 +106,18 @@ class CompositeRenderer {
         const material = new THREE.MeshBasicMaterial({
             map: this.videoTexture,
             side: THREE.DoubleSide,
-            depthWrite: false
+            depthWrite: false,
+            depthTest: false
         });
 
         this.videoPlane = new THREE.Mesh(geometry, material);
         this.videoPlane.position.z = -10; // Behind everything
+        this.videoPlane.renderOrder = -1; // Render first
         
         // Add to scene
         sceneManager.add(this.videoPlane);
         
-        console.log('Video background setup complete');
+        console.log('✓ Video background ready');
     }
 
     /**
@@ -100,6 +127,7 @@ class CompositeRenderer {
         if (this.isRunning) return;
         
         this.isRunning = true;
+        this.lastRenderTime = performance.now();
         console.log('Starting render loop...');
         this.render();
     }
@@ -119,67 +147,61 @@ class CompositeRenderer {
     }
 
     /**
-     * Main render loop
+     * Main render loop with FPS limiting
      */
     render() {
         if (!this.isRunning) return;
 
+        // Request next frame immediately to prevent lag
+        this.animationId = requestAnimationFrame(() => this.render());
+
         try {
-            // Update video texture
-            if (this.videoTexture) {
+            // FPS limiter - only render at target FPS
+            const now = performance.now();
+            const delta = now - this.lastRenderTime;
+            const targetDelta = 1000 / CONFIG.PERFORMANCE.TARGET_FPS;
+
+            if (delta < targetDelta - 1) {
+                // Skip this frame
+                return;
+            }
+
+            this.lastRenderTime = now;
+
+            // Update video texture (CRITICAL for showing camera feed)
+            if (this.videoTexture && cameraManager.isReady()) {
                 this.videoTexture.needsUpdate = true;
             }
 
             // Render Three.js scene (camera feed + 3D jacket)
             sceneManager.render();
 
-            // If AI enhancement is active, blend it in
-            if (aiPipeline.isActive() && aiPipeline.getBlendAlpha() > 0) {
-                this.blendAIFrame();
-            }
-
             // Update FPS counter
             this.updateFPS();
+
+            // Adaptive quality (reduce resolution if FPS drops)
+            if (CONFIG.PERFORMANCE.ADAPTIVE_QUALITY) {
+                this.adaptiveQuality();
+            }
 
         } catch (error) {
             console.error('Render error:', error);
         }
-
-        // Request next frame
-        this.animationId = requestAnimationFrame(() => this.render());
     }
 
     /**
-     * Blend AI-enhanced frame with current render
+     * Adaptive quality - reduce resolution if FPS is too low
      */
-    blendAIFrame() {
-        const aiFrame = aiPipeline.getLatestFrame();
-        const alpha = aiPipeline.getBlendAlpha();
+    adaptiveQuality() {
+        const avgFps = this.getAverageFPS();
         
-        if (!aiFrame || alpha <= 0) return;
-
-        try {
-            // Create temporary image from base64
-            const img = new Image();
-            img.src = aiFrame;
+        if (avgFps < CONFIG.PERFORMANCE.LOW_PERFORMANCE_THRESHOLD && 
+            CONFIG.PERFORMANCE.RENDER_SCALE > 0.5) {
             
-            img.onload = () => {
-                // Get canvas context
-                const ctx = this.canvas.getContext('2d');
-                
-                // Save current composite
-                const currentFrame = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                
-                // Draw AI frame
-                ctx.globalAlpha = alpha;
-                ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
-                
-                // Restore alpha
-                ctx.globalAlpha = 1.0;
-            };
-            
-        } catch (error) {
-            console.error('Error blending AI frame:', error);
+            // Reduce quality
+            console.warn(`Low FPS (${avgFps}), reducing render quality`);
+            CONFIG.PERFORMANCE.RENDER_SCALE = Math.max(0.5, CONFIG.PERFORMANCE.RENDER_SCALE - 0.1);
+            this.onResize(); // Apply new scale
         }
     }
 
@@ -191,13 +213,13 @@ class CompositeRenderer {
         
         try {
             // Ensure latest render
-            if (this.videoTexture) {
+            if (this.videoTexture && cameraManager.isReady()) {
                 this.videoTexture.needsUpdate = true;
             }
             sceneManager.render();
             
             // Capture canvas
-            return this.canvas.toDataURL('image/png');
+            return this.canvas.toDataURL('image/png', 0.95);
             
         } catch (error) {
             console.error('Error capturing frame:', error);
@@ -206,7 +228,7 @@ class CompositeRenderer {
     }
 
     /**
-     * Update FPS counter
+     * Update FPS counter with smoothing
      */
     updateFPS() {
         this.frameCount++;
@@ -214,29 +236,52 @@ class CompositeRenderer {
         const elapsed = now - this.lastFpsUpdate;
         
         if (elapsed >= 1000) {
-            this.fps = Math.round((this.frameCount * 1000) / elapsed);
+            const instantFps = Math.round((this.frameCount * 1000) / elapsed);
+            
+            // Add to history for smoothing
+            this.fpsHistory.push(instantFps);
+            if (this.fpsHistory.length > this.fpsHistorySize) {
+                this.fpsHistory.shift();
+            }
+            
+            // Calculate average FPS
+            this.fps = Math.round(
+                this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length
+            );
+            
             Utils.updateFPS(this.fps);
             
             this.frameCount = 0;
             this.lastFpsUpdate = now;
             
-            // Performance warning
-            if (this.fps < CONFIG.PERFORMANCE.LOW_PERFORMANCE_THRESHOLD) {
-                console.warn(`Low FPS detected: ${this.fps}`);
+            // Log performance metrics periodically
+            if (CONFIG.DEBUG.LOG_PERFORMANCE && this.fps < CONFIG.PERFORMANCE.LOW_PERFORMANCE_THRESHOLD) {
+                console.warn(`Performance warning: ${this.fps} FPS`);
             }
         }
     }
 
     /**
-     * Handle window resize
+     * Get average FPS from history
+     */
+    getAverageFPS() {
+        if (this.fpsHistory.length === 0) return 30;
+        return this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
+    }
+
+    /**
+     * Handle window resize with optimization
      */
     onResize() {
         const width = window.innerWidth;
         const height = window.innerHeight;
+        const scale = CONFIG.PERFORMANCE.RENDER_SCALE || 0.8;
         
         // Update canvas size
-        this.canvas.width = width;
-        this.canvas.height = height;
+        this.canvas.width = width * scale;
+        this.canvas.height = height * scale;
+        this.canvas.style.width = width + 'px';
+        this.canvas.style.height = height + 'px';
         
         // Update Three.js renderer
         const renderer = sceneManager.getRenderer();
@@ -252,7 +297,7 @@ class CompositeRenderer {
         }
         
         // Update video plane size
-        if (this.videoPlane) {
+        if (this.videoPlane && this.width && this.height) {
             const aspect = this.width / this.height;
             const planeWidth = 20;
             const planeHeight = planeWidth / aspect;
@@ -261,7 +306,7 @@ class CompositeRenderer {
             this.videoPlane.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
         }
         
-        console.log(`Window resized: ${width}x${height}`);
+        console.log(`Window resized: ${width}x${height} (render: ${this.canvas.width}x${this.canvas.height})`);
     }
 
     /**
@@ -294,11 +339,22 @@ class CompositeRenderer {
      * Take high-quality screenshot
      */
     async takeScreenshot(format = 'image/png', quality = 1.0) {
-        // Ensure latest render
+        // Temporarily increase render quality
+        const originalScale = CONFIG.PERFORMANCE.RENDER_SCALE;
+        CONFIG.PERFORMANCE.RENDER_SCALE = 1.0;
+        
+        // Resize and render
+        this.onResize();
         sceneManager.render();
         
-        // Capture at current canvas resolution
-        return this.canvas.toDataURL(format, quality);
+        // Capture
+        const screenshot = this.canvas.toDataURL(format, quality);
+        
+        // Restore original quality
+        CONFIG.PERFORMANCE.RENDER_SCALE = originalScale;
+        this.onResize();
+        
+        return screenshot;
     }
 
     /**
@@ -307,13 +363,17 @@ class CompositeRenderer {
     getStats() {
         return {
             fps: this.fps,
+            avgFps: this.getAverageFPS(),
             isRunning: this.isRunning,
             canvasSize: {
                 width: this.canvas.width,
-                height: this.canvas.height
+                height: this.canvas.height,
+                displayWidth: this.canvas.clientWidth,
+                displayHeight: this.canvas.clientHeight
             },
+            renderScale: CONFIG.PERFORMANCE.RENDER_SCALE,
             videoTextureActive: this.videoTexture !== null,
-            aiBlending: aiPipeline.isActive()
+            videoReady: cameraManager.isReady()
         };
     }
 
@@ -346,6 +406,10 @@ const compositeRenderer = new CompositeRenderer();
 if (CONFIG.DEBUG.LOG_PERFORMANCE) {
     setInterval(() => {
         const stats = compositeRenderer.getStats();
-        console.log('Renderer Stats:', stats);
+        if (stats.fps < 20) {
+            console.warn('Low FPS detected:', stats);
+        } else if (CONFIG.DEBUG.VERBOSE) {
+            console.log('Renderer Stats:', stats);
+        }
     }, 5000);
 }
