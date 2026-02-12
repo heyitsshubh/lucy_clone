@@ -1,42 +1,19 @@
-# Lucy Virtual Try-On Backend - Python Dependencies
-
-# Web Framework
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 websockets==12.0
 
-# Deep Learning
-torch==2.0.1
-torchvision==0.15.2
-diffusers==0.25.1
-transformers==4.37.2
-accelerate==0.26.1
+torch==2.10.0
+torchvision==0.20.0
+diffusers==0.30.0
+transformers==4.45.0
+accelerate==1.0.0
 
-# Image Processing
-Pillow==11.0.0
-opencv-python==4.9.0.80
-numpy==1.26.3
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
 
-# Utilities
-pydantic==2.5.3
-python-dotenv==1.0.0
+pydantic==2.9.0
+python-dotenv==1.0.1
 aiofiles==23.2.1
-```
-
-### 3. Create/Update `runtime.txt` in your backend folder:
-```
-python-3.11.0
-```
-
----
-
-## 📁 Your Backend Folder Should Have These Files:
-```
-backend/
-├── .python-version    ← NEW (contains: 3.11.0)
-├── runtime.txt        ← NEW (contains: python-3.11.0)
-├── requirements.txt   ← UPDATED
-├── main.py
-├── .env.example
-└── ... other files
+typing-extensions==4.12.0
