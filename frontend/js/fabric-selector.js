@@ -67,31 +67,43 @@ class FabricSelector {
             {
                 id: 'denim-blue',
                 name: 'Blue Denim',
-                diffuseUrl: 'assets/textures/denim_blue_diffuse.jpg',
-                normalUrl: 'assets/textures/denim_blue_normal.jpg',
-                roughnessUrl: 'assets/textures/denim_blue_roughness.jpg',
-                thumbnail: 'assets/textures/denim_blue_thumb.jpg',
+                color: '#4169E1',  // Use solid color instead of textures
                 roughness: 0.8,
                 metalness: 0.0
             },
             {
                 id: 'leather-black',
                 name: 'Black Leather',
-                diffuseUrl: 'assets/textures/leather_black_diffuse.jpg',
-                normalUrl: 'assets/textures/leather_black_normal.jpg',
-                roughnessUrl: 'assets/textures/leather_black_roughness.jpg',
-                thumbnail: 'assets/textures/leather_black_thumb.jpg',
+                color: '#1a1a1a',
                 roughness: 0.4,
                 metalness: 0.1
             },
             {
                 id: 'cotton-grey',
                 name: 'Grey Cotton',
-                diffuseUrl: 'assets/textures/cotton_grey_diffuse.jpg',
-                normalUrl: 'assets/textures/cotton_grey_normal.jpg',
-                roughnessUrl: 'assets/textures/cotton_grey_roughness.jpg',
-                thumbnail: 'assets/textures/cotton_grey_thumb.jpg',
+                color: '#808080',
                 roughness: 0.9,
+                metalness: 0.0
+            },
+            {
+                id: 'wool-navy',
+                name: 'Navy Wool',
+                color: '#000080',
+                roughness: 0.7,
+                metalness: 0.0
+            },
+            {
+                id: 'silk-champagne',
+                name: 'Champagne Silk',
+                color: '#F7E7CE',
+                roughness: 0.3,
+                metalness: 0.2
+            },
+            {
+                id: 'polyester-red',
+                name: 'Red Polyester',
+                color: '#DC143C',
+                roughness: 0.6,
                 metalness: 0.0
             }
         ];
@@ -119,7 +131,13 @@ class FabricSelector {
         
         const thumbnail = document.createElement('div');
         thumbnail.className = 'fabric-thumbnail';
-        thumbnail.style.backgroundImage = `url(${fabric.thumbnail || fabric.diffuseUrl})`;
+        
+        // Use solid color if available, otherwise try image URLs
+        if (fabric.color) {
+            thumbnail.style.backgroundColor = fabric.color;
+        } else if (fabric.thumbnail || fabric.diffuseUrl) {
+            thumbnail.style.backgroundImage = `url(${fabric.thumbnail || fabric.diffuseUrl})`;
+        }
         
         const name = document.createElement('span');
         name.textContent = fabric.name;

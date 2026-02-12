@@ -2,7 +2,7 @@
 const CONFIG = {
     // Backend API configuration
     API: {
-        BASE_URL: 'http://localhost:5000',       // Change if backend is hosted elsewhere
+        BASE_URL: 'https://lucy-clone-vvd7.onrender.com',       // Change if backend is hosted elsewhere
         WS_URL: 'ws://localhost:5000/ws',        // WebSocket URL
         ENDPOINTS: {
             HEALTH: '/health',

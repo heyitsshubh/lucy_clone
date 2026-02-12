@@ -23,9 +23,25 @@ class MaterialsManager {
                 throw new Error('Jacket mesh not found');
             }
 
-            // Load PBR textures
+            // Check if using solid color or textures
+            if (fabricData.color) {
+                // Simple color-based material
+                const material = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(fabricData.color),
+                    roughness: fabricData.roughness || 0.8,
+                    metalness: fabricData.metalness || 0.0,
+                    side: THREE.DoubleSide
+                });
+
+                this.applyMaterialToMesh(mesh, material);
+                this.currentFabric = fabricData;
+                console.log('Fabric applied (color):', fabricData.name);
+                return;
+            }
+
+            // Load PBR textures if URLs provided
             const [diffuseMap, normalMap, roughnessMap] = await Promise.all([
-                this.loadTexture(fabricData.diffuseUrl),
+                fabricData.diffuseUrl ? this.loadTexture(fabricData.diffuseUrl) : null,
                 fabricData.normalUrl ? this.loadTexture(fabricData.normalUrl) : null,
                 fabricData.roughnessUrl ? this.loadTexture(fabricData.roughnessUrl) : null
             ]);
